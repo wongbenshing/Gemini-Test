@@ -42,7 +42,7 @@ const HistoryView: React.FC<Props> = ({ history, isSyncing, onUpdate, onSync }) 
         onUpdate(parsed);
         setRawText('');
         setShowImport(false);
-        alert(`手动导入成功: ${parsed.length} 条`);
+        alert(`手动导入成功: ${parsed.length} 条。请记得导出 CSV 覆盖本地 history.csv 以同步目录数据。`);
       } else {
         alert('解析失败，请检查粘贴的内容');
       }
@@ -59,7 +59,7 @@ const HistoryView: React.FC<Props> = ({ history, isSyncing, onUpdate, onSync }) 
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `dlt_history_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `history.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -68,27 +68,36 @@ const HistoryView: React.FC<Props> = ({ history, isSyncing, onUpdate, onSync }) 
 
   return (
     <div className="space-y-4">
-      {/* Sticky Filter Bar - Adjusted Z-index and relative position */}
+      {/* Sticky Filter Bar */}
       <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-3 sticky top-[58px] z-20">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
-            开奖记录
+            数据管理
           </h2>
-          <button 
-            onClick={onSync}
-            disabled={isSyncing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold text-sm transition-all ${
-              isSyncing 
-                ? 'bg-slate-100 text-slate-400' 
-                : 'bg-blue-600 text-white shadow-md active:scale-95'
-            }`}
-          >
-            <svg className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-            </svg>
-            {isSyncing ? '同步中...' : '同步全量'}
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleExportCSV}
+              className="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-2xl font-bold text-xs flex items-center gap-1 border border-indigo-100 shadow-sm"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              保存至目录
+            </button>
+            <button 
+              onClick={onSync}
+              disabled={isSyncing}
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold text-sm transition-all ${
+                isSyncing 
+                  ? 'bg-slate-100 text-slate-400' 
+                  : 'bg-blue-600 text-white shadow-md active:scale-95'
+              }`}
+            >
+              <svg className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              {isSyncing ? '同步中...' : '抓取全量'}
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -113,27 +122,18 @@ const HistoryView: React.FC<Props> = ({ history, isSyncing, onUpdate, onSync }) 
           </div>
         </div>
 
-        <div className="flex justify-between items-center px-1">
-          <button 
-            onClick={() => setShowImport(!showImport)}
-            className="text-[10px] text-slate-400 hover:text-blue-500 font-bold uppercase tracking-wider py-1"
-          >
-            {showImport ? '隐藏工具' : '手动导入 / 纠错'}
-          </button>
-          <button 
-            onClick={handleExportCSV}
-            className="text-[10px] text-indigo-500 hover:text-indigo-700 font-bold uppercase tracking-wider py-1 flex items-center gap-1"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            导出 CSV
-          </button>
-        </div>
+        <button 
+          onClick={() => setShowImport(!showImport)}
+          className="text-[10px] text-slate-400 hover:text-blue-500 font-bold uppercase tracking-wider text-center"
+        >
+          {showImport ? '隐藏手动工具' : '手动解析 500.com 数据'}
+        </button>
 
         {showImport && (
           <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 animate-in fade-in duration-300">
             <textarea
               className="w-full h-24 p-3 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="粘贴 500.com 表格内容..."
+              placeholder="粘贴 500.com 历史表格网页内容..."
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
             />
@@ -142,17 +142,16 @@ const HistoryView: React.FC<Props> = ({ history, isSyncing, onUpdate, onSync }) 
               disabled={isParsing}
               className="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold disabled:opacity-50"
             >
-              {isParsing ? 'AI 解析中...' : '解析并保存'}
+              {isParsing ? 'AI 正在转换 DataFrame...' : '解析并入库'}
             </button>
           </div>
         )}
       </div>
 
-      {/* Result list with top padding to ensure first record isn't obscured */}
       <div className="space-y-3 pt-4">
         {filteredHistory.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-slate-400">没有找到匹配的记录</p>
+            <p className="text-slate-400">DataFrame 中暂无匹配记录</p>
           </div>
         ) : (
           filteredHistory.map((draw) => (
@@ -162,7 +161,7 @@ const HistoryView: React.FC<Props> = ({ history, isSyncing, onUpdate, onSync }) 
                    <span className="text-sm font-black text-slate-700">第 {draw.id} 期</span>
                    <span className="text-[10px] text-slate-400 font-bold">{draw.date}</span>
                 </div>
-                <div className="text-[10px] font-bold text-slate-300">和值: {draw.front.reduce((a, b) => a + b, 0)}</div>
+                <div className="text-[10px] font-bold text-slate-300">SUM: {draw.front.reduce((a, b) => a + b, 0)}</div>
               </div>
               <div className="flex gap-2 items-center">
                 <div className="flex gap-1.5 flex-wrap">

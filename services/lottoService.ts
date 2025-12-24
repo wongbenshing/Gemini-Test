@@ -7,13 +7,11 @@ const PROXIES = [
   "https://thingproxy.freeboard.io/fetch/"
 ];
 
-// User can replace this with their actual raw GitHub CSV URL
-const REMOTE_CSV_URL = ""; 
-
+const LOCAL_CSV_PATH = "./history.csv"; 
 const TRIAL_LIMITS = [2000, 1000, 500, 100];
 
 /**
- * Converts LottoDraw array to a CSV string
+ * 将数据转换为 CSV 字符串 (DataFrame 格式)
  */
 export const convertToCSV = (data: LottoDraw[]): string => {
   const header = "id,date,f1,f2,f3,f4,f5,b1,b2\n";
@@ -24,7 +22,7 @@ export const convertToCSV = (data: LottoDraw[]): string => {
 };
 
 /**
- * Parses a CSV string into LottoDraw array
+ * 解析 CSV 字符串为 LottoDraw 数组
  */
 export const parseCSV = (csvText: string): LottoDraw[] => {
   const lines = csvText.split('\n').filter(line => line.trim() && !line.startsWith('id'));
@@ -41,23 +39,22 @@ export const parseCSV = (csvText: string): LottoDraw[] => {
 };
 
 /**
- * Fetches historical data from a remote CSV file (e.g. GitHub)
+ * 读取项目目录下的 history.csv
  */
-export const fetchRemoteHistory = async (url: string = REMOTE_CSV_URL): Promise<LottoDraw[]> => {
-  if (!url) return [];
+export const fetchLocalCSV = async (): Promise<LottoDraw[]> => {
   try {
-    const response = await fetch(url);
-    if (!response.ok) return [];
+    const response = await fetch(LOCAL_CSV_PATH);
+    if (!response.ok) throw new Error("Local CSV not found");
     const text = await response.text();
     return parseCSV(text);
   } catch (e) {
-    console.error("Remote CSV fetch failed", e);
+    console.warn("读取本地 history.csv 失败，将使用初始常量数据", e);
     return [];
   }
 };
 
 /**
- * Fetches and parses lottery data from 500.com with a specific limit.
+ * 从 500.com 抓取数据
  */
 async function fetchWithLimit(limit: number, proxyBase: string): Promise<LottoDraw[]> {
   const url = `https://datachart.500.com/dlt/history/newinc/history.php?limit=${limit}&sort=0`;
@@ -71,51 +68,28 @@ async function fetchWithLimit(limit: number, proxyBase: string): Promise<LottoDr
       method: 'GET',
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
 
     if (!response.ok) throw new Error(`Status ${response.status}`);
-    
     const htmlText = await response.text();
-    if (!htmlText.includes('t_tr1')) throw new Error("No table rows found");
-
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlText, "text/html");
-
     const trElements = Array.from(doc.querySelectorAll('tr.t_tr1'));
     const results: LottoDraw[] = [];
 
     trElements.forEach(row => {
       const tds = row.querySelectorAll('td');
       if (tds.length < 9) return;
-
       const drawId = tds[0].textContent?.trim() || "";
-      const front = [
-        parseInt(tds[1].textContent || "0"),
-        parseInt(tds[2].textContent || "0"),
-        parseInt(tds[3].textContent || "0"),
-        parseInt(tds[4].textContent || "0"),
-        parseInt(tds[5].textContent || "0")
-      ];
-      const back = [
-        parseInt(tds[6].textContent || "0"),
-        parseInt(tds[7].textContent || "0")
-      ];
-      
+      const front = [1,2,3,4,5].map(i => parseInt(tds[i].textContent || "0"));
+      const back = [6,7].map(i => parseInt(tds[i].textContent || "0"));
       let drawDate = "";
       for (let i = tds.length - 1; i >= 0; i--) {
         const val = tds[i].textContent?.trim() || "";
-        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
-          drawDate = val;
-          break;
-        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) { drawDate = val; break; }
       }
-
-      if (drawId && drawDate && !front.some(isNaN) && !back.some(isNaN)) {
-        results.push({ id: drawId, date: drawDate, front, back });
-      }
+      if (drawId && drawDate) results.push({ id: drawId, date: drawDate, front, back });
     });
-
     return results;
   } catch (e) {
     clearTimeout(timeoutId);
@@ -123,24 +97,15 @@ async function fetchWithLimit(limit: number, proxyBase: string): Promise<LottoDr
   }
 }
 
-/**
- * Automatically attempts to find the largest working limit and syncs all records.
- */
 export const crawlLottoHistory = async (): Promise<LottoDraw[]> => {
   let lastError: Error | null = null;
-
   for (const proxy of PROXIES) {
     for (const limit of TRIAL_LIMITS) {
       try {
         const data = await fetchWithLimit(limit, proxy);
-        if (data.length > 5) {
-          return data;
-        }
-      } catch (err) {
-        lastError = err as Error;
-      }
+        if (data.length > 5) return data;
+      } catch (err) { lastError = err as Error; }
     }
   }
-
   throw lastError || new Error("All sync attempts failed");
 };

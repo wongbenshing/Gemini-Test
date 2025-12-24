@@ -7,7 +7,7 @@ import AnalyzerView from './components/AnalyzerView';
 import StatsView from './components/StatsView';
 import AIView from './components/AIView';
 import BottomNav from './components/BottomNav';
-import { crawlLottoHistory, fetchRemoteHistory } from './services/lottoService';
+import { crawlLottoHistory, fetchLocalCSV } from './services/lottoService';
 
 const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<TabType>(TabType.HISTORY);
@@ -32,7 +32,6 @@ const App: React.FC = () => {
   const triggerSync = async () => {
     setIsSyncing(true);
     try {
-      // 1. Fetch from 500.com (HTML)
       const scrapedData = await crawlLottoHistory();
       if (scrapedData.length > 0) {
         updateHistory(scrapedData);
@@ -44,22 +43,26 @@ const App: React.FC = () => {
     }
   };
 
-  // Initialize data: Load from Local -> Fetch from Remote CSV -> Auto Scraping
   useEffect(() => {
     const initData = async () => {
-      // 1. Load Local Storage
+      // 1. 尝试从项目目录下的 history.csv 加载 (DataFrame)
+      const localData = await fetchLocalCSV();
+      
+      // 2. 如果 CSV 没读取到，尝试从浏览器 Local Storage 加载
       const saved = localStorage.getItem('dlt_history');
-      let baseHistory = saved ? JSON.parse(saved) : INITIAL_DATA;
-      setHistory(baseHistory);
+      const cachedData = saved ? JSON.parse(saved) : [];
+
+      // 合并数据源
+      const combined = [...localData, ...cachedData];
+      if (combined.length > 0) {
+        updateHistory(combined);
+      } else {
+        setHistory(INITIAL_DATA);
+      }
+      
       setIsLoading(false);
 
-      // 2. Load Remote CSV (GitHub)
-      const remoteData = await fetchRemoteHistory();
-      if (remoteData.length > 0) {
-        updateHistory(remoteData);
-      }
-
-      // 3. Auto sync from web
+      // 3. 自动触发实时爬虫同步
       triggerSync();
     };
 
@@ -86,7 +89,7 @@ const App: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-          <p className="text-slate-400 font-bold text-sm animate-pulse">正在初始化全量历史数据...</p>
+          <p className="text-slate-400 font-bold text-sm animate-pulse">正在读取 history.csv 数据集...</p>
         </div>
       </div>
     );
@@ -94,7 +97,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 pb-20">
-      <header className="sticky top-0 z-10 glass-morphism border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-30 glass-morphism border-b border-slate-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-200">L</div>
           <div>
@@ -102,12 +105,12 @@ const App: React.FC = () => {
               超级大乐透智析
             </h1>
             {isSyncing && (
-              <p className="text-[10px] text-blue-500 font-bold animate-pulse">数据双路实时同步中...</p>
+              <p className="text-[10px] text-blue-500 font-bold animate-pulse">DataFrame 实时更新中...</p>
             )}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">本地存量</div>
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">总样本量</div>
           <div className="text-xs text-slate-600 font-bold">
             {history.length} 期
           </div>

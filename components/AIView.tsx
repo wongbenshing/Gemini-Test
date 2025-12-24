@@ -84,10 +84,12 @@ const AIView: React.FC<Props> = ({ history }) => {
             <h2 className="text-xl font-bold">AI 智能选号建议</h2>
           </div>
 
-          {/* Prediction Reference */}
+          {/* Prediction Reference Range */}
           <div className="mb-4 bg-white/10 px-4 py-2 rounded-2xl flex justify-between items-center text-xs">
-            <span className="text-indigo-200">趋势预测和值参考:</span>
-            <span className="font-black text-yellow-300 text-sm">{predictedSum}</span>
+            <span className="text-indigo-200">趋势预测和值范围参考:</span>
+            <span className="font-black text-yellow-300 text-sm">
+              {predictedSum - 2} ~ {predictedSum + 2}
+            </span>
           </div>
           
           {loading ? (

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { LottoDraw } from '../types';
-import { parseHistoryData } from '../services/geminiService';
+import { parseHistoryData } from '../services/deepseekService';
 import { convertToCSV } from '../services/lottoService';
 
 interface Props {
@@ -142,7 +142,7 @@ const HistoryView: React.FC<Props> = ({ history, isSyncing, onUpdate, onSync }) 
               disabled={isParsing}
               className="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold disabled:opacity-50"
             >
-              {isParsing ? 'AI 正在转换 DataFrame...' : '解析并入库'}
+              {isParsing ? 'DeepSeek 正在解析...' : '解析并入库'}
             </button>
           </div>
         )}
